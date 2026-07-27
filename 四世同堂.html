@@ -97,10 +97,16 @@
             font-size: 0.95rem;
             transition: 0.2s;
             font-family: inherit;
+            position: relative;
         }
         .person-tag:hover {
             background: #dccfc0;
             transform: scale(1.04);
+        }
+        .person-tag.cached::after {
+            content: ' ✓';
+            color: #6b8f5e;
+            font-size: 0.7rem;
         }
 
         #modal {
@@ -159,6 +165,34 @@
         .error {
             color: #b34a4a;
         }
+        .cached-badge {
+            font-size: 0.7rem;
+            color: #6b8f5e;
+            margin-left: 8px;
+            font-weight: normal;
+        }
+        /* 缓存管理按钮 */
+        .cache-tools {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 14px;
+            gap: 10px;
+            font-size: 0.75rem;
+        }
+        .cache-tools button {
+            background: none;
+            border: 1px solid #d6c0aa;
+            border-radius: 20px;
+            padding: 2px 14px;
+            cursor: pointer;
+            font-family: inherit;
+            color: #8e735b;
+            transition: 0.2s;
+        }
+        .cache-tools button:hover {
+            background: #dccfc0;
+            color: #4d3221;
+        }
     </style>
 </head>
 <body>
@@ -167,24 +201,30 @@
         <h1>四世同堂</h1>
         <p style="text-align:center;color:#8e735b;letter-spacing:2px;margin:6px 0 10px;">· 小羊圈胡同 ·</p>
 
-        <!-- 三个院子按钮 -->
         <div class="yard-buttons">
             <button class="yard-btn active" data-scene="qi">🏠 祁家</button>
             <button class="yard-btn" data-scene="qian">📖 钱家</button>
             <button class="yard-btn" data-scene="guan">🎩 冠家</button>
         </div>
 
-        <!-- 场景展示 -->
         <div class="scene-box" id="sceneBox">
             <div class="time" id="sceneTime">北平 · 沦陷前夕</div>
             <div class="desc" id="sceneDesc">加载中……</div>
         </div>
 
-        <div style="font-size:0.8rem;color:#8e735b;margin:2px 0 4px;">👥 点击人物查看介绍</div>
+        <div style="font-size:0.8rem;color:#8e735b;margin:2px 0 4px;">
+            👥 点击人物查看介绍
+            <span style="font-size:0.7rem;color:#6b8f5e;">（✓ 已缓存，永久免费）</span>
+        </div>
         <div class="people-list" id="peopleList"></div>
+
+        <!-- 🆕 缓存管理工具 -->
+        <div class="cache-tools">
+            <span style="color:#a58366;font-size:0.7rem;" id="cacheCount">已缓存 0 位人物</span>
+            <button id="clearCacheBtn">🗑️ 清空缓存</button>
+        </div>
     </div>
 
-    <!-- 弹窗 -->
     <div id="modal">
         <div id="modal-box">
             <button class="close" id="modalClose">✕</button>
@@ -194,6 +234,44 @@
     </div>
 
     <script>
+        // ============================================================
+        //  🆕 localStorage 缓存工具函数
+        // ============================================================
+        const CACHE_PREFIX = 'sishitongtang_';
+
+        function getCachedStory(name) {
+            return localStorage.getItem(CACHE_PREFIX + name);
+        }
+
+        function setCachedStory(name, content) {
+            localStorage.setItem(CACHE_PREFIX + name, content);
+        }
+
+        function getAllCachedNames() {
+            const keys = Object.keys(localStorage);
+            return keys.filter(k => k.startsWith(CACHE_PREFIX)).map(k => k.replace(CACHE_PREFIX, ''));
+        }
+
+        function clearAllCache() {
+            const names = getAllCachedNames();
+            names.forEach(name => localStorage.removeItem(CACHE_PREFIX + name));
+            updateCacheCount();
+            // 刷新当前场景的人物标签状态
+            renderScene(currentScene);
+        }
+
+        function updateCacheCount() {
+            const count = getAllCachedNames().length;
+            document.getElementById('cacheCount').textContent = `已缓存 ${count} 位人物`;
+        }
+
+        // 清空缓存按钮
+        document.getElementById('clearCacheBtn').addEventListener('click', () => {
+            if (confirm('确定要清空所有人物介绍缓存吗？清空后再次点击会重新调用 API 并扣费。')) {
+                clearAllCache();
+            }
+        });
+
         // ============================================================
         //  数据
         // ============================================================
@@ -228,19 +306,23 @@
             document.getElementById('sceneTime').textContent = d.time;
             document.getElementById('sceneDesc').textContent = d.desc;
 
-            // 按钮高亮
             document.querySelectorAll('.yard-btn').forEach(b => b.classList.toggle('active', b.dataset.scene === key));
 
-            // 渲染人物标签
             const list = document.getElementById('peopleList');
             list.innerHTML = '';
             d.people.forEach(name => {
                 const tag = document.createElement('button');
                 tag.className = 'person-tag';
+                // 🆕 检查 localStorage 中是否有缓存
+                if (getCachedStory(name)) {
+                    tag.classList.add('cached');
+                }
                 tag.textContent = name;
                 tag.onclick = () => openModal(name);
                 list.appendChild(tag);
             });
+
+            updateCacheCount();
         }
 
         document.querySelectorAll('.yard-btn').forEach(btn => {
@@ -248,13 +330,13 @@
         });
 
         // ============================================================
-        //  DeepSeek API（请填入你的 Key）
+        //  DeepSeek API
         // ============================================================
         const API_KEY = 'sk-729a65bad56b4712a59f56d32c300c96';
         const API_URL = 'https://api.deepseek.com/v1/chat/completions';
 
         // ============================================================
-        //  弹窗
+        //  弹窗 + 缓存逻辑（localStorage 版）
         // ============================================================
         const modal = document.getElementById('modal');
         const modalName = document.getElementById('modalName');
@@ -263,6 +345,15 @@
         function openModal(name) {
             modal.classList.add('active');
             modalName.textContent = name;
+
+            // 🆕 先检查 localStorage 缓存
+            const cached = getCachedStory(name);
+            if (cached) {
+                modalBody.innerHTML = `<div>${cached} <span style="font-size:0.7rem;color:#6b8f5e;">（已缓存，永久免费）</span></div>`;
+                return;
+            }
+
+            // 没有缓存 → 调用 API
             modalBody.innerHTML = '<span class="loading">📖 DeepSeek 正在讲述……</span>';
             fetchStory(name);
         }
@@ -287,7 +378,22 @@
                 });
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.error?.message || '请求失败');
-                modalBody.textContent = data.choices[0].message.content;
+
+                const content = data.choices[0].message.content;
+
+                // 🆕 存入 localStorage（永久保存）
+                setCachedStory(name, content);
+                modalBody.innerHTML = `<div>${content} <span style="font-size:0.7rem;color:#6b8f5e;">（已缓存，永久免费）</span></div>`;
+
+                // 更新人物标签上的缓存标记
+                document.querySelectorAll('.person-tag').forEach(tag => {
+                    if (tag.textContent === name) {
+                        tag.classList.add('cached');
+                    }
+                });
+
+                updateCacheCount();
+
             } catch (e) {
                 modalBody.innerHTML = `<span class="error">❌ ${e.message}<br><br>检查：Key是否正确？网络是否畅通？</span>`;
             }
@@ -297,6 +403,7 @@
         //  初始化
         // ============================================================
         renderScene('qi');
+        updateCacheCount();
 
         if (API_KEY === '你的DeepSeek-API-Key') {
             console.warn('⚠️ 请填入你的 DeepSeek API Key');
