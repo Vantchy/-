@@ -18,7 +18,7 @@ def hailstone(n):
     if n%2 != 0 :
         yield from hailstone (3*n + 1)
 
-
+'shiyan'
 
 def merge(a, b):
     """
