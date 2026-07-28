@@ -108,7 +108,10 @@
       pointer-events: none;
       gap: 8px;
       flex-wrap: wrap;
+      opacity: 0;
+      transition: opacity 1.2s ease;
     }
+    #top-bar.show { opacity: 1; }
     #top-bar > * { pointer-events: all; }
     .top-btn {
       font-family: inherit;
@@ -144,7 +147,7 @@
       position: fixed;
       bottom: 100px;
       left: 50%;
-      transform: translateX(-50%);
+      transform: translateX(-50%) translateY(30px);
       z-index: 6;
       width: min(88%, 780px);
       max-height: 62vh;
@@ -158,6 +161,11 @@
       overflow-y: auto;
       pointer-events: none;
       transition: opacity 1.0s cubic-bezier(0.4, 0.0, 0.2, 1), transform 1.0s cubic-bezier(0.4, 0.0, 0.2, 1);
+      opacity: 0;
+    }
+    #text-container.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
     }
     #text-container.fading {
       opacity: 0;
@@ -264,7 +272,10 @@
       gap: 18px;
       flex-wrap: wrap;
       backdrop-filter: blur(4px);
+      opacity: 0;
+      transition: opacity 1.2s ease;
     }
+    #bottom-bar.show { opacity: 1; }
     .progress-info {
       font-size: 0.7rem;
       font-weight: 300;
@@ -794,7 +805,10 @@
       flex-direction: column;
       gap: 6px;
       pointer-events: none;
+      opacity: 0;
+      transition: opacity 1.2s ease;
     }
+    #sound-controls.show { opacity: 1; }
     #sound-controls > * { pointer-events: all; }
     .sound-btn {
       font-family: inherit;
@@ -907,9 +921,101 @@
       font-family: inherit;
       text-shadow: 0 0 60px rgba(196,149,74,0.1);
     }
+
+    /* ===== 引入动画 ===== */
+    #intro-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      background: #0d0a06;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      pointer-events: none;
+      transition: opacity 2.0s ease;
+    }
+    #intro-overlay.hide {
+      opacity: 0;
+    }
+    .intro-title {
+      font-size: clamp(2.8rem, 12vw, 6rem);
+      font-weight: 700;
+      color: #d4b68a;
+      text-shadow: 0 0 40px rgba(184, 134, 11, 0.2);
+      letter-spacing: 0.15em;
+      opacity: 0;
+      transform: scale(0.96);
+      transition: opacity 1.8s ease, transform 1.8s ease;
+      font-family: 'Georgia', 'Times New Roman', serif;
+      margin-bottom: 0.2em;
+    }
+    .intro-title.show {
+      opacity: 1;
+      transform: scale(1);
+    }
+    .intro-sub {
+      font-size: clamp(0.8rem, 2vw, 1.2rem);
+      color: #b68f4a;
+      letter-spacing: 0.25em;
+      opacity: 0;
+      transition: opacity 2.0s ease 0.6s;
+      text-align: center;
+      max-width: 80%;
+      font-style: italic;
+      font-weight: 300;
+      text-shadow: 0 0 20px rgba(184, 134, 11, 0.1);
+    }
+    .intro-sub.show {
+      opacity: 0.6;
+    }
+    .intro-dust {
+      position: absolute;
+      width: 2px;
+      height: 2px;
+      background: rgba(196, 149, 74, 0.3);
+      border-radius: 50%;
+      animation: dustFloat 12s infinite linear;
+      pointer-events: none;
+    }
+    @keyframes dustFloat {
+      0% { transform: translateY(0) translateX(0) scale(0.5); opacity: 0; }
+      10% { opacity: 0.8; }
+      90% { opacity: 0.8; }
+      100% { transform: translateY(-100vh) translateX(60px) scale(1.2); opacity: 0; }
+    }
+    .intro-light {
+      position: absolute;
+      width: 80vmax;
+      height: 80vmax;
+      border-radius: 50%;
+      background: radial-gradient(circle at center, rgba(184, 134, 11, 0.06) 0%, transparent 70%);
+      opacity: 0;
+      transition: opacity 2.0s ease 2.2s;
+      pointer-events: none;
+    }
+    .intro-light.show {
+      opacity: 1;
+    }
   </style>
 </head>
 <body>
+
+  <!-- 引入动画 -->
+  <div id="intro-overlay">
+    <div class="intro-light"></div>
+    <div class="intro-title">百年孤独</div>
+    <div class="intro-sub">家族的第一个人被捆在树上，最后一个人正被蚂蚁吃掉。</div>
+    <!-- 尘埃粒子 -->
+    <div class="intro-dust" style="left:10%;animation-delay:0.2s;"></div>
+    <div class="intro-dust" style="left:30%;animation-delay:1.5s;width:3px;height:3px;"></div>
+    <div class="intro-dust" style="left:50%;animation-delay:3s;"></div>
+    <div class="intro-dust" style="left:70%;animation-delay:0.8s;width:1px;height:1px;"></div>
+    <div class="intro-dust" style="left:90%;animation-delay:2.2s;"></div>
+    <div class="intro-dust" style="left:20%;animation-delay:4s;width:2px;height:2px;"></div>
+    <div class="intro-dust" style="left:60%;animation-delay:5.5s;"></div>
+    <div class="intro-dust" style="left:80%;animation-delay:3.5s;width:3px;height:3px;"></div>
+  </div>
 
   <!-- 背景 -->
   <div id="bg-layer"></div>
@@ -1010,20 +1116,12 @@
       <div class="graph-controls">
         <select id="graphFilter">
           <option value="夫妻">夫妻</option>
-          <option value="父子">亲子</option>
-          <option value="父女">亲子</option>
-          <option value="母子">亲子</option>
-          <option value="母女">亲子</option>
-          <option value="孪生兄弟">手足</option>
-          <option value="兄弟">手足</option>
-          <option value="姐妹/情敌">手足</option>
-          <option value="朋友/战友">战友</option>
+          <option value="亲子">亲子</option>
+          <option value="手足">手足</option>
+          <option value="战友">战友</option>
           <option value="师生">师生</option>
           <option value="情人">情人</option>
-          <option value="情侣">恋人</option>
           <option value="恋人">恋人</option>
-          <option value="恋人（未成）">恋人</option>
-          <option value="恋人（近亲）">恋人</option>
         </select>
         <button id="graphResetView">🔄 重置视图</button>
         <button class="graph-close" id="graphClose">关闭</button>
@@ -1110,29 +1208,29 @@
       ],
       relationships: [
         { "from": "何塞·阿尔卡蒂奥·布恩迪亚", "to": "乌尔苏拉·伊瓜兰", "type": "夫妻", "description": "丈夫是疯狂的探索者，妻子是务实的家族支柱，共同创立了马孔多。" },
-        { "from": "何塞·阿尔卡蒂奥·布恩迪亚", "to": "奥雷里亚诺·布恩迪亚上校", "type": "父子", "description": "父亲带他见识冰块，传授科学知识，奠定了上校一生的基础记忆。" },
-        { "from": "何塞·阿尔卡蒂奥·布恩迪亚", "to": "何塞·阿尔卡蒂奥", "type": "父子", "description": "长子，少年时出走，最终回归。" },
-        { "from": "何塞·阿尔卡蒂奥·布恩迪亚", "to": "阿玛兰妲·布恩迪亚", "type": "父女", "description": "唯一的女儿，性格高傲，内心矛盾。" },
+        { "from": "何塞·阿尔卡蒂奥·布恩迪亚", "to": "奥雷里亚诺·布恩迪亚上校", "type": "亲子", "description": "父亲带他见识冰块，传授科学知识，奠定了上校一生的基础记忆。" },
+        { "from": "何塞·阿尔卡蒂奥·布恩迪亚", "to": "何塞·阿尔卡蒂奥", "type": "亲子", "description": "长子，少年时出走，最终回归。" },
+        { "from": "何塞·阿尔卡蒂奥·布恩迪亚", "to": "阿玛兰妲·布恩迪亚", "type": "亲子", "description": "唯一的女儿，性格高傲，内心矛盾。" },
         { "from": "奥雷里亚诺·布恩迪亚上校", "to": "蕾梅黛丝·摩斯科特", "type": "夫妻", "description": "他深爱的小妻子，她的早逝成为他一生的痛楚和孤独的根源。" },
         { "from": "何塞·阿尔卡蒂奥", "to": "丽贝卡·布恩迪亚", "type": "夫妻", "description": "两人激情结合，婚后隐居，后被家族遗忘，最终丈夫神秘死亡。" },
         { "from": "何塞·阿尔卡蒂奥", "to": "庇拉尔·特尔内拉", "type": "情人", "description": "他的第一个女人，为他生下了私生子阿尔卡蒂奥。" },
         { "from": "奥雷里亚诺·布恩迪亚上校", "to": "庇拉尔·特尔内拉", "type": "情人", "description": "他的第一个女人，为他生下了私生子奥雷里亚诺·何塞。" },
         { "from": "阿尔卡蒂奥", "to": "桑塔索菲亚·德拉·彼达", "type": "夫妻", "description": "她是庇拉尔花钱雇来为他破处的女人，后成为他的妻子，为他生下双胞胎。" },
-        { "from": "庇拉尔·特尔内拉", "to": "阿尔卡蒂奥", "type": "母子", "description": "儿子并不知道她是自己的母亲，直到临死前才隐约知晓真相。" },
+        { "from": "庇拉尔·特尔内拉", "to": "阿尔卡蒂奥", "type": "亲子", "description": "儿子并不知道她是自己的母亲，直到临死前才隐约知晓真相。" },
         { "from": "奥雷里亚诺第二", "to": "费尔南达·德尔·卡皮奥", "type": "夫妻", "description": "政治婚姻，不幸福，妻子古板，丈夫放荡，两人貌合神离。" },
         { "from": "奥雷里亚诺第二", "to": "佩特拉·科特斯", "type": "情人", "description": "他们之间有真爱和默契，她是他的福星，她的爱能催生财富。" },
-        { "from": "奥雷里亚诺第二", "to": "何塞·阿尔卡蒂奥第二", "type": "孪生兄弟", "description": "童年时互换身份，长大后性格迥异，在死亡中重新变得酷似。" },
+        { "from": "奥雷里亚诺第二", "to": "何塞·阿尔卡蒂奥第二", "type": "手足", "description": "童年时互换身份，长大后性格迥异，在死亡中重新变得酷似。" },
         { "from": "何塞·阿尔卡蒂奥第二", "to": "奥雷里亚诺·巴比伦", "type": "师生", "description": "他教年幼的奥雷里亚诺读写，并向他讲述三千人大屠杀的真相。" },
-        { "from": "阿玛兰妲·布恩迪亚", "to": "丽贝卡·布恩迪亚", "type": "姐妹/情敌", "description": "因对皮埃特罗·克雷斯皮的爱而反目成仇，终生怨恨。" },
-        { "from": "阿玛兰妲·布恩迪亚", "to": "皮埃特罗·克雷斯皮", "type": "恋人（未成）", "description": "阿玛兰妲拒绝他，致其自杀。" },
-        { "from": "梅梅", "to": "马乌里肖·巴比伦", "type": "情侣", "description": "她爱上工人阶级的他，恋情被发现后，两人都遭遇了悲惨的命运。" },
-        { "from": "奥雷里亚诺·巴比伦", "to": "阿玛兰妲·乌尔苏拉", "type": "恋人（近亲）", "description": "两人相爱，但不知彼此血缘关系，是导致家族毁灭的最后一环。" },
-        { "from": "梅尔基亚德斯", "to": "何塞·阿尔卡蒂奥·布恩迪亚", "type": "朋友", "description": "吉卜赛智者引领他进入科学和幻想的世界，是家族命运的记录者。" },
-        { "from": "奥雷里亚诺·布恩迪亚上校", "to": "赫里内勒多·马尔克斯上校", "type": "朋友/战友", "description": "最忠实的战友和同袍，后因政治分歧差点被枪决，最终在孤独中死去。" },
+        { "from": "阿玛兰妲·布恩迪亚", "to": "丽贝卡·布恩迪亚", "type": "手足", "description": "因对皮埃特罗·克雷斯皮的爱而反目成仇，终生怨恨。" },
+        { "from": "阿玛兰妲·布恩迪亚", "to": "皮埃特罗·克雷斯皮", "type": "恋人", "description": "阿玛兰妲拒绝他，致其自杀。" },
+        { "from": "梅梅", "to": "马乌里肖·巴比伦", "type": "恋人", "description": "她爱上工人阶级的他，恋情被发现后，两人都遭遇了悲惨的命运。" },
+        { "from": "奥雷里亚诺·巴比伦", "to": "阿玛兰妲·乌尔苏拉", "type": "恋人", "description": "两人相爱，但不知彼此血缘关系，是导致家族毁灭的最后一环。" },
+        { "from": "梅尔基亚德斯", "to": "何塞·阿尔卡蒂奥·布恩迪亚", "type": "战友", "description": "吉卜赛智者引领他进入科学和幻想的世界，是家族命运的记录者。" },
+        { "from": "奥雷里亚诺·布恩迪亚上校", "to": "赫里内勒多·马尔克斯上校", "type": "战友", "description": "最忠实的战友和同袍，后因政治分歧差点被枪决，最终在孤独中死去。" },
         { "from": "阿玛兰妲·乌尔苏拉", "to": "加斯通", "type": "夫妻", "description": "丈夫顺从地陪伴她返回马孔多，最终因无法融入而独自离开。" },
-        { "from": "乌尔苏拉·伊瓜兰", "to": "奥雷里亚诺·布恩迪亚上校", "type": "母子", "description": "母亲一生操持家务，养育三子一女，支撑家族百年。" },
-        { "from": "乌尔苏拉·伊瓜兰", "to": "何塞·阿尔卡蒂奥", "type": "母子", "description": "长子体格魁梧，母亲对他既骄傲又担忧。" },
-        { "from": "乌尔苏拉·伊瓜兰", "to": "阿玛兰妲·布恩迪亚", "type": "母女", "description": "唯一的女儿，母亲见证了她一生的爱与恨。" }
+        { "from": "乌尔苏拉·伊瓜兰", "to": "奥雷里亚诺·布恩迪亚上校", "type": "亲子", "description": "母亲一生操持家务，养育三子一女，支撑家族百年。" },
+        { "from": "乌尔苏拉·伊瓜兰", "to": "何塞·阿尔卡蒂奥", "type": "亲子", "description": "长子体格魁梧，母亲对他既骄傲又担忧。" },
+        { "from": "乌尔苏拉·伊瓜兰", "to": "阿玛兰妲·布恩迪亚", "type": "亲子", "description": "唯一的女儿，母亲见证了她一生的爱与恨。" }
       ]
     };
 
@@ -1296,6 +1394,7 @@
       _currentBgId: null,
       _bgTimer: null,
       _preloaded: {},
+      _isTypingComplete: false,
 
       _preloadImages() {
         for (let i = 1; i <= Math.min(5, DATA.episodes.length); i++) {
@@ -1385,7 +1484,7 @@
         setTimeout(() => el.remove(), 1500);
       },
 
-      render(index, instant = false) {
+      render(index, instant = false, skipTyping = false) {
         const ep = DATA.episodes[index];
         if (!ep) return;
         state.currentIndex = index;
@@ -1402,11 +1501,11 @@
           this._charName.onclick = (e) => { e.stopPropagation(); Modal.open(ep.character); };
 
           const text = ep.text;
-          if (state.typewriter) {
+          if (state.typewriter && !skipTyping) {
             this._storyText.textContent = '';
             this._storyText.classList.add('typing');
             let pos = 0;
-            const speed = 25;
+            const speed = 35;
             const typeFn = () => {
               if (pos < text.length) {
                 this._storyText.textContent += text.charAt(pos);
@@ -1415,12 +1514,21 @@
                 this._typingTimer = setTimeout(typeFn, speed);
               } else {
                 this._storyText.classList.remove('typing');
+                this._isTypingComplete = true;
+                // 触发下一段自动播放
+                if (state.autoPlay && !this._autoPlayPaused) {
+                  clearTimeout(this._autoPlayNextTimer);
+                  this._autoPlayNextTimer = setTimeout(() => {
+                    this.goNext();
+                  }, 2000);
+                }
               }
             };
             typeFn();
           } else {
             this._storyText.textContent = text;
             this._storyText.classList.remove('typing');
+            this._isTypingComplete = true;
           }
 
           this._atmoRow.innerHTML = `
@@ -1439,7 +1547,7 @@
 
           const nextId = DATA.episodes[(index + 1) % DATA.episodes.length].id;
           if (!this._preloaded[nextId]) { this._preloaded[nextId] = new Image(); this._preloaded[nextId].src = getImagePath(nextId); }
-        }, 600);
+        }, instant ? 0 : 600);
 
         this._updateBookmarkUI();
         TOC.render();
@@ -1460,15 +1568,15 @@
         }
       },
 
-      goPrev() { if (state.currentIndex > 0) this.render(state.currentIndex - 1); },
+      goPrev() { if (state.currentIndex > 0) this.render(state.currentIndex - 1, false, true); },
       goNext() {
         if (state.currentIndex < DATA.episodes.length - 1) {
-          this.render(state.currentIndex + 1);
+          this.render(state.currentIndex + 1, false, true);
         } else if (state.autoPlay) {
           this.toggleAutoPlay();
         }
       },
-      goTo(index) { if (index >= 0 && index < DATA.episodes.length) this.render(index); },
+      goTo(index) { if (index >= 0 && index < DATA.episodes.length) this.render(index, false, true); },
 
       toggleBookmark() {
         if (state.bookmarks.has(state.currentIndex)) {
@@ -1488,10 +1596,18 @@
           btn.classList.toggle('active', state.autoPlay);
         }
         if (state.autoPlay) {
-          state.autoPlayTimer = setInterval(() => this.goNext(), 3000); // 加速至3秒
+          this._autoPlayPaused = false;
+          // 如果当前段落已经打完字，直接调度下一段
+          if (this._isTypingComplete) {
+            clearTimeout(this._autoPlayNextTimer);
+            this._autoPlayNextTimer = setTimeout(() => {
+              this.goNext();
+            }, 2000);
+          }
         } else {
+          this._autoPlayPaused = true;
+          clearTimeout(this._autoPlayNextTimer);
           clearInterval(state.autoPlayTimer);
-          state.autoPlayTimer = null;
         }
       },
 
@@ -1501,7 +1617,7 @@
         if (btn) {
           btn.classList.toggle('active', state.typewriter);
         }
-        this.render(state.currentIndex, true);
+        this.render(state.currentIndex, true, true);
       },
 
       search(query) {
@@ -1528,7 +1644,10 @@
 
       init() {
         this._preloadImages();
-        this.render(0, true);
+        // 延迟渲染，等待引入动画
+        setTimeout(() => {
+          this.render(0, true, true);
+        }, 6000);
         this._updateStats();
       }
     };
@@ -1657,7 +1776,7 @@
     };
 
     // ════════════════════════════════════════════════════════════════
-    // 关系图谱 (重构版: 按关系类型精确过滤，补充缺失关系)
+    // 关系图谱 (重构版: 按关系类型精确过滤，合并亲子)
     // ════════════════════════════════════════════════════════════════
     const Graph = {
       panel: $('#graph-panel'),
@@ -1674,19 +1793,18 @@
       _startOffY: 0,
 
       _typeColors: {
-        '夫妻': '#c4954a', '父子': '#6b8c5c', '父女': '#6b8c5c', '母子': '#6b8c5c', '母女': '#6b8c5c',
-        '情人': '#b8860b', '情侣': '#9b6b9e', '恋人': '#9b6b9e', '恋人（未成）': '#9b6b9e', '恋人（近亲）': '#9b6b9e',
-        '孪生兄弟': '#5c7a8a', '兄弟': '#5c7a8a', '朋友': '#5c7a8a', '朋友/战友': '#5c7a8a',
-        '姐妹/情敌': '#cc6655', '师生': '#6b8c8c'
+        '夫妻': '#c4954a', '亲子': '#6b8c5c',
+        '情人': '#b8860b', '恋人': '#9b6b9e',
+        '手足': '#5c7a8a', '战友': '#5c7a8a',
+        '师生': '#6b8c8c'
       },
       _typeDash: {
-        '情人': '5,3', '情侣': '4,3', '恋人': '4,3', '恋人（未成）': '4,3', '恋人（近亲）': '4,2'
+        '情人': '5,3', '恋人': '4,3'
       },
 
       _getFilteredRelations() {
         const filter = this.filter.value;
         if (filter === 'all') return DATA.relationships;
-        // 精确匹配类型
         return DATA.relationships.filter(r => r.type === filter);
       },
 
@@ -1908,6 +2026,44 @@
     };
 
     // ════════════════════════════════════════════════════════════════
+    // 引入动画
+    // ════════════════════════════════════════════════════════════════
+    function runIntro() {
+      const overlay = document.getElementById('intro-overlay');
+      const title = overlay.querySelector('.intro-title');
+      const sub = overlay.querySelector('.intro-sub');
+      const light = overlay.querySelector('.intro-light');
+
+      // 第一阶段：黑色幕布 (0-1.2s)
+      // 第二阶段：标题浮现 (1.2s)
+      setTimeout(() => {
+        title.classList.add('show');
+        sub.classList.add('show');
+      }, 1200);
+
+      // 第三阶段：光线渗透 (3.0s)
+      setTimeout(() => {
+        light.classList.add('show');
+      }, 3000);
+
+      // 第四阶段：UI元素入场 (4.5s)
+      setTimeout(() => {
+        document.getElementById('top-bar').classList.add('show');
+        document.getElementById('text-container').classList.add('show');
+        document.getElementById('bottom-bar').classList.add('show');
+        document.getElementById('sound-controls').classList.add('show');
+      }, 4500);
+
+      // 第五阶段：首段文字逐字显现 (6.0s) - 由 Story.init 处理
+      setTimeout(() => {
+        overlay.classList.add('hide');
+        setTimeout(() => {
+          overlay.style.display = 'none';
+        }, 2000);
+      }, 6000);
+    }
+
+    // ════════════════════════════════════════════════════════════════
     // 启动
     // ════════════════════════════════════════════════════════════════
     document.addEventListener('DOMContentLoaded', () => {
@@ -1922,7 +2078,7 @@
       $('#btnAutoPlay').addEventListener('click', () => Story.toggleAutoPlay());
       $('#btnTypewriter').addEventListener('click', () => Story.toggleTypewriter());
 
-      // 优化点击区域灵敏度：使用click事件替代mousedown/mouseup
+      // 优化点击区域灵敏度
       document.getElementById('click-left').addEventListener('click', (e) => {
         e.stopPropagation();
         Story.goPrev();
@@ -1939,6 +2095,9 @@
         if (e.key === 't' && !e.ctrlKey && !e.metaKey) { Story.toggleTypewriter(); }
         if (e.key === 'p' && !e.ctrlKey && !e.metaKey) { Story.toggleAutoPlay(); }
       });
+
+      // 启动引入动画
+      runIntro();
     });
   </script>
 </body>
