@@ -219,6 +219,7 @@
       word-break: break-word;
       letter-spacing: 0.01em;
       transition: opacity 0.8s ease;
+      min-height: 1.5em;
     }
     .story-text.typing {
       overflow: hidden;
@@ -1265,6 +1266,8 @@
       audioContext: null,
       soundNodes: {},
       stats: { sessions: 0, totalRead: 0 },
+      isTypingComplete: false,
+      _autoPlayPaused: false,
     };
 
     // ════════════════════════════════════════════════════════════════
@@ -1394,7 +1397,9 @@
       _currentBgId: null,
       _bgTimer: null,
       _preloaded: {},
-      _isTypingComplete: false,
+      _typingTimer: null,
+      _renderTimer: null,
+      _autoPlayNextTimer: null,
 
       _preloadImages() {
         for (let i = 1; i <= Math.min(5, DATA.episodes.length); i++) {
@@ -1494,6 +1499,7 @@
         this._container.classList.add('fading');
         clearTimeout(this._typingTimer);
         clearTimeout(this._renderTimer);
+        clearTimeout(this._autoPlayNextTimer);
 
         this._renderTimer = setTimeout(() => {
           this._sceneTag.textContent = `${ep.scene} · ${ep.atmosphere}`;
@@ -1501,11 +1507,14 @@
           this._charName.onclick = (e) => { e.stopPropagation(); Modal.open(ep.character); };
 
           const text = ep.text;
+          // 重置打字完成状态
+          state.isTypingComplete = false;
+
           if (state.typewriter && !skipTyping) {
             this._storyText.textContent = '';
             this._storyText.classList.add('typing');
             let pos = 0;
-            const speed = 35;
+            const speed = 30;
             const typeFn = () => {
               if (pos < text.length) {
                 this._storyText.textContent += text.charAt(pos);
@@ -1514,9 +1523,9 @@
                 this._typingTimer = setTimeout(typeFn, speed);
               } else {
                 this._storyText.classList.remove('typing');
-                this._isTypingComplete = true;
-                // 触发下一段自动播放
-                if (state.autoPlay && !this._autoPlayPaused) {
+                state.isTypingComplete = true;
+                // 如果自动播放开启且未暂停，调度下一段
+                if (state.autoPlay && !state._autoPlayPaused) {
                   clearTimeout(this._autoPlayNextTimer);
                   this._autoPlayNextTimer = setTimeout(() => {
                     this.goNext();
@@ -1528,7 +1537,14 @@
           } else {
             this._storyText.textContent = text;
             this._storyText.classList.remove('typing');
-            this._isTypingComplete = true;
+            state.isTypingComplete = true;
+            // 如果自动播放开启且未暂停，且不是跳过打字模式（即用户手动点击切换），也调度下一段
+            if (state.autoPlay && !state._autoPlayPaused && !skipTyping) {
+              clearTimeout(this._autoPlayNextTimer);
+              this._autoPlayNextTimer = setTimeout(() => {
+                this.goNext();
+              }, 2000);
+            }
           }
 
           this._atmoRow.innerHTML = `
@@ -1568,15 +1584,26 @@
         }
       },
 
-      goPrev() { if (state.currentIndex > 0) this.render(state.currentIndex - 1, false, true); },
+      goPrev() { 
+        if (state.currentIndex > 0) {
+          clearTimeout(this._autoPlayNextTimer);
+          this.render(state.currentIndex - 1, false, true); 
+        }
+      },
       goNext() {
         if (state.currentIndex < DATA.episodes.length - 1) {
+          clearTimeout(this._autoPlayNextTimer);
           this.render(state.currentIndex + 1, false, true);
         } else if (state.autoPlay) {
           this.toggleAutoPlay();
         }
       },
-      goTo(index) { if (index >= 0 && index < DATA.episodes.length) this.render(index, false, true); },
+      goTo(index) { 
+        if (index >= 0 && index < DATA.episodes.length) {
+          clearTimeout(this._autoPlayNextTimer);
+          this.render(index, false, true); 
+        }
+      },
 
       toggleBookmark() {
         if (state.bookmarks.has(state.currentIndex)) {
@@ -1596,18 +1623,17 @@
           btn.classList.toggle('active', state.autoPlay);
         }
         if (state.autoPlay) {
-          this._autoPlayPaused = false;
-          // 如果当前段落已经打完字，直接调度下一段
-          if (this._isTypingComplete) {
+          state._autoPlayPaused = false;
+          // 如果当前段落已完成打字，直接调度下一段
+          if (state.isTypingComplete) {
             clearTimeout(this._autoPlayNextTimer);
             this._autoPlayNextTimer = setTimeout(() => {
               this.goNext();
             }, 2000);
           }
         } else {
-          this._autoPlayPaused = true;
+          state._autoPlayPaused = true;
           clearTimeout(this._autoPlayNextTimer);
-          clearInterval(state.autoPlayTimer);
         }
       },
 
@@ -1617,7 +1643,9 @@
         if (btn) {
           btn.classList.toggle('active', state.typewriter);
         }
-        this.render(state.currentIndex, true, true);
+        // 重新渲染当前段落，应用打字机模式
+        clearTimeout(this._autoPlayNextTimer);
+        this.render(state.currentIndex, true, false);
       },
 
       search(query) {
@@ -1644,9 +1672,8 @@
 
       init() {
         this._preloadImages();
-        // 延迟渲染，等待引入动画
         setTimeout(() => {
-          this.render(0, true, true);
+          this.render(0, true, false);
         }, 6000);
         this._updateStats();
       }
@@ -1776,7 +1803,7 @@
     };
 
     // ════════════════════════════════════════════════════════════════
-    // 关系图谱 (重构版: 按关系类型精确过滤，合并亲子)
+    // 关系图谱 (保留，未作改动)
     // ════════════════════════════════════════════════════════════════
     const Graph = {
       panel: $('#graph-panel'),
@@ -1857,7 +1884,6 @@
         </defs>
         <rect width="100%" height="100%" fill="#0d0a06"/>`;
 
-        // 连线
         rels.forEach(rel => {
           const from = positions[rel.from];
           const to = positions[rel.to];
@@ -1869,7 +1895,6 @@
             fill="none" stroke="${color}" stroke-width="${1.4*scale}" stroke-dasharray="${dash}" opacity="0.5"/>`;
         });
 
-        // 关系标签
         rels.forEach(rel => {
           const from = positions[rel.from];
           const to = positions[rel.to];
@@ -1881,7 +1906,6 @@
             text-anchor="middle" font-family="Georgia,serif" opacity="0.9" filter="url(#shadow)">${rel.type}</text>`;
         });
 
-        // 节点
         Object.entries(positions).forEach(([name, pos]) => {
           const ch = DATA.characters.find(c => c.name === name);
           const display = ch ? (ch.alias || name) : name;
@@ -1944,7 +1968,6 @@
         $('#graphPopupClose').addEventListener('click', (e) => { e.stopPropagation(); this.closePopup(); });
         $('#graph-popup-overlay').addEventListener('click', (e) => { if (e.target === e.currentTarget) this.closePopup(); });
 
-        // 拖拽
         this.svg.addEventListener('mousedown', (e) => {
           if (e.target.closest('.graph-node')) return;
           this._isDragging = true;
@@ -1969,7 +1992,6 @@
           }
         });
 
-        // 触摸拖拽
         let touchStartX, touchStartY, touchOffX, touchOffY;
         this.svg.addEventListener('touchstart', (e) => {
           if (e.target.closest('.graph-node')) return;
@@ -1987,7 +2009,6 @@
           this._render();
         }, { passive: true });
 
-        // 滚轮缩放
         this.svg.addEventListener('wheel', (e) => {
           e.preventDefault();
           const delta = e.deltaY > 0 ? -0.08 : 0.08;
@@ -2034,19 +2055,15 @@
       const sub = overlay.querySelector('.intro-sub');
       const light = overlay.querySelector('.intro-light');
 
-      // 第一阶段：黑色幕布 (0-1.2s)
-      // 第二阶段：标题浮现 (1.2s)
       setTimeout(() => {
         title.classList.add('show');
         sub.classList.add('show');
       }, 1200);
 
-      // 第三阶段：光线渗透 (3.0s)
       setTimeout(() => {
         light.classList.add('show');
       }, 3000);
 
-      // 第四阶段：UI元素入场 (4.5s)
       setTimeout(() => {
         document.getElementById('top-bar').classList.add('show');
         document.getElementById('text-container').classList.add('show');
@@ -2054,7 +2071,6 @@
         document.getElementById('sound-controls').classList.add('show');
       }, 4500);
 
-      // 第五阶段：首段文字逐字显现 (6.0s) - 由 Story.init 处理
       setTimeout(() => {
         overlay.classList.add('hide');
         setTimeout(() => {
@@ -2078,7 +2094,6 @@
       $('#btnAutoPlay').addEventListener('click', () => Story.toggleAutoPlay());
       $('#btnTypewriter').addEventListener('click', () => Story.toggleTypewriter());
 
-      // 优化点击区域灵敏度
       document.getElementById('click-left').addEventListener('click', (e) => {
         e.stopPropagation();
         Story.goPrev();
@@ -2096,7 +2111,6 @@
         if (e.key === 'p' && !e.ctrlKey && !e.metaKey) { Story.toggleAutoPlay(); }
       });
 
-      // 启动引入动画
       runIntro();
     });
   </script>
