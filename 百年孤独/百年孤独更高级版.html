@@ -221,15 +221,6 @@
       transition: opacity 0.8s ease;
       min-height: 1.5em;
     }
-    .story-text.typing {
-      overflow: hidden;
-      border-right: 2px solid rgba(196,149,74,0.3);
-      animation: blink-caret 0.75s step-end infinite;
-    }
-    @keyframes blink-caret {
-      0%, 100% { border-color: rgba(196,149,74,0.3); }
-      50% { border-color: transparent; }
-    }
     .atmosphere-row {
       display: flex;
       justify-content: flex-start;
@@ -1044,8 +1035,7 @@
       <button class="top-btn" id="btnBookmark">🔖 书签</button>
     </div>
     <div class="top-group">
-      <button class="top-btn" id="btnAutoPlay">▶ 自动播放</button>
-      <button class="top-btn" id="btnTypewriter">⌨️ 打字机</button>
+      <!-- 自动播放和打字机按钮已移除 -->
     </div>
   </div>
 
@@ -1258,16 +1248,10 @@
     const state = {
       currentIndex: 0,
       bookmarks: new Set(),
-      autoPlay: false,
-      autoPlayTimer: null,
-      typewriter: false,
-      typingTimer: null,
       soundEnabled: { rain: false, wind: false, cricket: false },
       audioContext: null,
       soundNodes: {},
       stats: { sessions: 0, totalRead: 0 },
-      isTypingComplete: false,
-      _autoPlayPaused: false,
     };
 
     // ════════════════════════════════════════════════════════════════
@@ -1397,9 +1381,7 @@
       _currentBgId: null,
       _bgTimer: null,
       _preloaded: {},
-      _typingTimer: null,
       _renderTimer: null,
-      _autoPlayNextTimer: null,
 
       _preloadImages() {
         for (let i = 1; i <= Math.min(5, DATA.episodes.length); i++) {
@@ -1489,7 +1471,7 @@
         setTimeout(() => el.remove(), 1500);
       },
 
-      render(index, instant = false, skipTyping = false) {
+      render(index, instant = false) {
         const ep = DATA.episodes[index];
         if (!ep) return;
         state.currentIndex = index;
@@ -1497,55 +1479,15 @@
         this._triggerEnvironment(ep);
 
         this._container.classList.add('fading');
-        clearTimeout(this._typingTimer);
         clearTimeout(this._renderTimer);
-        clearTimeout(this._autoPlayNextTimer);
 
         this._renderTimer = setTimeout(() => {
           this._sceneTag.textContent = `${ep.scene} · ${ep.atmosphere}`;
           this._charName.textContent = ep.character;
           this._charName.onclick = (e) => { e.stopPropagation(); Modal.open(ep.character); };
 
-          const text = ep.text;
-          // 重置打字完成状态
-          state.isTypingComplete = false;
-
-          if (state.typewriter && !skipTyping) {
-            this._storyText.textContent = '';
-            this._storyText.classList.add('typing');
-            let pos = 0;
-            const speed = 30;
-            const typeFn = () => {
-              if (pos < text.length) {
-                this._storyText.textContent += text.charAt(pos);
-                pos++;
-                this._storyText.scrollTop = this._storyText.scrollHeight;
-                this._typingTimer = setTimeout(typeFn, speed);
-              } else {
-                this._storyText.classList.remove('typing');
-                state.isTypingComplete = true;
-                // 如果自动播放开启且未暂停，调度下一段
-                if (state.autoPlay && !state._autoPlayPaused) {
-                  clearTimeout(this._autoPlayNextTimer);
-                  this._autoPlayNextTimer = setTimeout(() => {
-                    this.goNext();
-                  }, 2000);
-                }
-              }
-            };
-            typeFn();
-          } else {
-            this._storyText.textContent = text;
-            this._storyText.classList.remove('typing');
-            state.isTypingComplete = true;
-            // 如果自动播放开启且未暂停，且不是跳过打字模式（即用户手动点击切换），也调度下一段
-            if (state.autoPlay && !state._autoPlayPaused && !skipTyping) {
-              clearTimeout(this._autoPlayNextTimer);
-              this._autoPlayNextTimer = setTimeout(() => {
-                this.goNext();
-              }, 2000);
-            }
-          }
+          this._storyText.textContent = ep.text;
+          this._storyText.classList.remove('typing');
 
           this._atmoRow.innerHTML = `
             <span class="atmo-tag">🔊 ${ep.sound}</span>
@@ -1584,26 +1526,9 @@
         }
       },
 
-      goPrev() { 
-        if (state.currentIndex > 0) {
-          clearTimeout(this._autoPlayNextTimer);
-          this.render(state.currentIndex - 1, false, true); 
-        }
-      },
-      goNext() {
-        if (state.currentIndex < DATA.episodes.length - 1) {
-          clearTimeout(this._autoPlayNextTimer);
-          this.render(state.currentIndex + 1, false, true);
-        } else if (state.autoPlay) {
-          this.toggleAutoPlay();
-        }
-      },
-      goTo(index) { 
-        if (index >= 0 && index < DATA.episodes.length) {
-          clearTimeout(this._autoPlayNextTimer);
-          this.render(index, false, true); 
-        }
-      },
+      goPrev() { if (state.currentIndex > 0) this.render(state.currentIndex - 1); },
+      goNext() { if (state.currentIndex < DATA.episodes.length - 1) this.render(state.currentIndex + 1); },
+      goTo(index) { if (index >= 0 && index < DATA.episodes.length) this.render(index); },
 
       toggleBookmark() {
         if (state.bookmarks.has(state.currentIndex)) {
@@ -1613,39 +1538,6 @@
         }
         this._updateBookmarkUI();
         TOC.render();
-      },
-
-      toggleAutoPlay() {
-        state.autoPlay = !state.autoPlay;
-        const btn = $('#btnAutoPlay');
-        if (btn) {
-          btn.textContent = state.autoPlay ? '⏸ 暂停' : '▶ 自动播放';
-          btn.classList.toggle('active', state.autoPlay);
-        }
-        if (state.autoPlay) {
-          state._autoPlayPaused = false;
-          // 如果当前段落已完成打字，直接调度下一段
-          if (state.isTypingComplete) {
-            clearTimeout(this._autoPlayNextTimer);
-            this._autoPlayNextTimer = setTimeout(() => {
-              this.goNext();
-            }, 2000);
-          }
-        } else {
-          state._autoPlayPaused = true;
-          clearTimeout(this._autoPlayNextTimer);
-        }
-      },
-
-      toggleTypewriter() {
-        state.typewriter = !state.typewriter;
-        const btn = $('#btnTypewriter');
-        if (btn) {
-          btn.classList.toggle('active', state.typewriter);
-        }
-        // 重新渲染当前段落，应用打字机模式
-        clearTimeout(this._autoPlayNextTimer);
-        this.render(state.currentIndex, true, false);
       },
 
       search(query) {
@@ -1673,7 +1565,7 @@
       init() {
         this._preloadImages();
         setTimeout(() => {
-          this.render(0, true, false);
+          this.render(0, true);
         }, 6000);
         this._updateStats();
       }
@@ -2091,8 +1983,6 @@
       Story.init();
 
       $('#btnBookmark').addEventListener('click', () => Story.toggleBookmark());
-      $('#btnAutoPlay').addEventListener('click', () => Story.toggleAutoPlay());
-      $('#btnTypewriter').addEventListener('click', () => Story.toggleTypewriter());
 
       document.getElementById('click-left').addEventListener('click', (e) => {
         e.stopPropagation();
@@ -2107,8 +1997,6 @@
         if (e.key === 'ArrowLeft') { e.preventDefault(); Story.goPrev(); }
         if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); Story.goNext(); }
         if (e.key === 'b' && !e.ctrlKey && !e.metaKey) { Story.toggleBookmark(); }
-        if (e.key === 't' && !e.ctrlKey && !e.metaKey) { Story.toggleTypewriter(); }
-        if (e.key === 'p' && !e.ctrlKey && !e.metaKey) { Story.toggleAutoPlay(); }
       });
 
       runIntro();
